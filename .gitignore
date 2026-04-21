@@ -1,0 +1,33 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+backend/venv/
+backend/db.sqlite3
+backend/*.log
+backend/.env
+
+# Node / Vue
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/*.log
+frontend/.vscode/
+
+# Packaging output
+release/
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Runtime logs
+run.log
+*.err.log
+*.out.log
