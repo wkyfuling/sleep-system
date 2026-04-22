@@ -1,0 +1,16 @@
+[Unit]
+Description=Sleep System Django API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/sleep-system/backend
+EnvironmentFile=/opt/sleep-system/backend/.env
+ExecStart=/opt/sleep-system/backend/venv/bin/gunicorn sleep_system.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 120
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

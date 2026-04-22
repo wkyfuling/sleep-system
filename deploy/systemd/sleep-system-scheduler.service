@@ -1,0 +1,16 @@
+[Unit]
+Description=Sleep System scheduled notification jobs
+After=network.target sleep-system.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/sleep-system/backend
+EnvironmentFile=/opt/sleep-system/backend/.env
+ExecStart=/opt/sleep-system/backend/venv/bin/python manage.py run_scheduler
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

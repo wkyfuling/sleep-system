@@ -64,6 +64,7 @@ function renderChart(data) {
       show: false,
       min: 0,
       max: 100,
+      dimension: 1,
       inRange: { color: ['#ebedf0', '#67c23a'] },
     },
     calendar: {
