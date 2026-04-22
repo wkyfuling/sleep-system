@@ -25,6 +25,16 @@ from .deepseek_client import AIResult, DeepSeekError, build_student_prompt, call
 DAILY_LIMIT = 3
 MAX_CHAT_MESSAGE_LEN = 500
 MAX_CHAT_HISTORY = 4
+SMALL_TALK_REPLIES = {
+    "你好": "你好，我是 SleepCare AI 助手。你可以问我睡眠趋势、风险解读、沟通建议或当前页面数据含义。",
+    "您好": "您好，我是 SleepCare AI 助手。需要我帮你解读睡眠数据、班级风险或生成沟通建议吗？",
+    "谢谢": "不客气。有需要时可以继续问我睡眠分析、风险处理或家校沟通建议。",
+    "感谢": "不客气，我会尽量用简洁可执行的方式帮你分析。",
+}
+BUSINESS_KEYWORDS = (
+    "睡眠", "打卡", "班级", "学生", "家长", "老师", "风险", "异常", "严重", "质量", "时长",
+    "报告", "报表", "导出", "趋势", "建议", "沟通", "作息", "预警", "数据", "分析", "诊断",
+)
 
 
 @api_view(["POST"])
@@ -181,13 +191,21 @@ def chat(request):
 
     page_context = str(request.data.get("page_context") or "").strip()[:120]
     history = _format_chat_history(request.data.get("history") or [])
-    role_context = _build_role_context(request.user)
+    if _is_small_talk(message):
+        reply = _small_talk_reply(message)
+        return Response({"reply": reply, "is_mock": False, "provider": "local"})
+
+    needs_context = _needs_business_context(message)
+    role_context = _build_role_context(request.user) if needs_context else "本轮是普通对话，无需读取业务数据。"
 
     prompt = _build_chat_prompt(request.user, page_context, role_context, history, message)
     system_prompt = (
         "你是 SleepCare AI 助手，服务于学生睡眠管理系统。"
+        "不得自称老师、班主任、医生、管理员或真人；只能自称 SleepCare AI 助手。"
         "回答必须使用中文，专业、简洁、可执行。"
-        "只基于给出的摘要分析，不要编造具体学生、班级或打卡数据。"
+        "业务问题只基于给出的摘要分析，不要编造具体学生、班级或打卡数据。"
+        "普通寒暄或一般聊天直接自然回应，不要强行分析业务数据。"
+        "当班级人数为 0 或无记录时，说“当前暂无学生或打卡数据”，不要说数据异常。"
         "涉及健康风险时提醒用户联系家长、老师或专业人士，不要做医疗诊断。"
         "默认用 3 条以内回答，不超过 220 字。"
     )
@@ -226,6 +244,28 @@ def _build_chat_prompt(user: User, page_context: str, role_context: str, history
         f"问题：{message}\n"
         "要求：直接回答，优先给 1-3 条建议；数据不足时说明缺什么。"
     )
+
+
+def _is_small_talk(message: str) -> bool:
+    text = message.strip().lower()
+    compact = "".join(text.split())
+    if compact in SMALL_TALK_REPLIES:
+        return True
+    if len(compact) <= 8 and any(word in compact for word in ("你好", "您好", "hello", "hi", "谢谢", "感谢")):
+        return True
+    return False
+
+
+def _small_talk_reply(message: str) -> str:
+    compact = "".join(message.strip().lower().split())
+    for key, reply in SMALL_TALK_REPLIES.items():
+        if key in compact:
+            return reply
+    return SMALL_TALK_REPLIES["你好"]
+
+
+def _needs_business_context(message: str) -> bool:
+    return any(keyword in message for keyword in BUSINESS_KEYWORDS)
 
 
 def _format_chat_history(items) -> str:
