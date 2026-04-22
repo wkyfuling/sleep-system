@@ -19,15 +19,21 @@ from apps.users.models import User
 from apps.users.permissions import role_required
 
 
-def _get_teacher_classroom(user):
-    """返回老师的第一个班级（答辩演示只用一个）。"""
-    return user.classrooms.first()
+def _get_teacher_classroom(user, classroom_id: str | None = None):
+    """返回老师有权限访问的班级。未指定时返回第一个班级。"""
+    classrooms = user.classrooms.all()
+    if classroom_id:
+        try:
+            return classrooms.get(id=int(classroom_id))
+        except (TypeError, ValueError, classrooms.model.DoesNotExist):
+            return None
+    return classrooms.first()
 
 
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, role_required(User.Role.TEACHER)])
 def export_class_month(request):
-    classroom = _get_teacher_classroom(request.user)
+    classroom = _get_teacher_classroom(request.user, request.query_params.get("classroom_id"))
     if not classroom:
         return Response({"detail": "未找到班级"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -51,7 +57,7 @@ def export_class_month(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, role_required(User.Role.TEACHER)])
 def export_day_overview(request):
-    classroom = _get_teacher_classroom(request.user)
+    classroom = _get_teacher_classroom(request.user, request.query_params.get("classroom_id"))
     if not classroom:
         return Response({"detail": "未找到班级"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -78,10 +84,6 @@ def export_student_pdf(request):
     from apps.users.models import StudentProfile
     from utils.exporters import export_student_semester_pdf
 
-    classroom = _get_teacher_classroom(request.user)
-    if not classroom:
-        return Response({"detail": "未找到班级"}, status=status.HTTP_404_NOT_FOUND)
-
     try:
         student_id = int(request.query_params.get("student_id", 0))
         year = int(request.query_params.get("year", date.today().year))
@@ -89,7 +91,7 @@ def export_student_pdf(request):
     except ValueError:
         return Response({"detail": "参数格式错误"}, status=status.HTTP_400_BAD_REQUEST)
 
-    student = classroom.students.filter(id=student_id).first()
+    student = StudentProfile.objects.filter(id=student_id, classroom__teacher=request.user).first()
     if not student:
         return Response({"detail": "学生不在本班"}, status=status.HTTP_404_NOT_FOUND)
 

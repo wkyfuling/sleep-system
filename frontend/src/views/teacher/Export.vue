@@ -11,6 +11,24 @@ const selectedMonth = ref(dayjs().month() + 1)
 const students = ref([])
 const selectedStudentId = ref(null)
 const selectedSemester = ref(1)
+const classrooms = ref([])
+const selectedClassroomId = ref(null)
+
+async function getErrorMessage(e) {
+  const data = e?.response?.data
+  if (data instanceof Blob) {
+    const text = await data.text().catch(() => '')
+    if (text) {
+      try {
+        const json = JSON.parse(text)
+        return json.detail || json.error || text
+      } catch {
+        return text
+      }
+    }
+  }
+  return data?.detail || data?.error || e?.message || '未知错误'
+}
 
 async function downloadFile(url, filename) {
   try {
@@ -23,14 +41,15 @@ async function downloadFile(url, filename) {
     URL.revokeObjectURL(link.href)
     ElMessage.success(`${filename} 下载成功`)
   } catch (e) {
-    ElMessage.error('导出失败，请确认有班级数据')
+    ElMessage.error(`导出失败：${await getErrorMessage(e)}`)
   }
 }
 
 async function exportClassMonth() {
   loadingType.value = 'month'
+  const classroomParam = selectedClassroomId.value ? `&classroom_id=${selectedClassroomId.value}` : ''
   await downloadFile(
-    `/sleep/export/class-month/?year=${selectedYear.value}&month=${selectedMonth.value}`,
+    `/sleep/export/class-month/?year=${selectedYear.value}&month=${selectedMonth.value}${classroomParam}`,
     `班级月报_${selectedYear.value}${String(selectedMonth.value).padStart(2,'0')}.xlsx`
   )
   loadingType.value = ''
@@ -38,17 +57,25 @@ async function exportClassMonth() {
 
 async function exportDayOverview() {
   loadingType.value = 'day'
+  const classroomParam = selectedClassroomId.value ? `&classroom_id=${selectedClassroomId.value}` : ''
   await downloadFile(
-    `/sleep/export/day-overview/?date=${selectedDate.value}`,
+    `/sleep/export/day-overview/?date=${selectedDate.value}${classroomParam}`,
     `日报_${selectedDate.value}.xlsx`
   )
   loadingType.value = ''
 }
 
 async function loadStudents() {
-  const res = await request.get('/auth/teacher/students/')
+  const params = selectedClassroomId.value ? { classroom_id: selectedClassroomId.value } : {}
+  const res = await request.get('/auth/teacher/students/', { params })
   students.value = res.results || []
   selectedStudentId.value = students.value[0]?.student_id || null
+}
+
+async function loadClassrooms() {
+  const res = await request.get('/auth/teacher/class-overview/')
+  classrooms.value = res.classrooms || []
+  selectedClassroomId.value = classrooms.value[0]?.classroom_id || null
 }
 
 async function exportStudentPdf() {
@@ -64,7 +91,12 @@ async function exportStudentPdf() {
   loadingType.value = ''
 }
 
-onMounted(loadStudents)
+async function init() {
+  await loadClassrooms()
+  await loadStudents()
+}
+
+onMounted(init)
 </script>
 
 <template>
@@ -80,6 +112,19 @@ onMounted(loadStudents)
       <template #header><b>📊 报表导出</b></template>
 
       <el-row :gutter="20">
+        <el-col :span="24" v-if="classrooms.length > 1">
+          <el-form-item label="导出班级" label-width="80px">
+            <el-select v-model="selectedClassroomId" style="width: 220px" @change="loadStudents">
+              <el-option
+                v-for="c in classrooms"
+                :key="c.classroom_id"
+                :label="c.classroom_name"
+                :value="c.classroom_id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+
         <!-- 班级月报 -->
         <el-col :span="8">
           <div class="export-card">
