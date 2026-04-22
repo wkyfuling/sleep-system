@@ -1,20 +1,41 @@
 """DeepSeek AI 客户端 + Mock 兜底。
 
-当 DEEPSEEK_API_KEY 为空或请求失败时，自动返回基于规则的模板建议，不崩溃。
+当 DEEPSEEK_API_KEY 为空或请求失败时，业务接口自动返回基于规则的模板建议，
+保证学生端和老师端页面不崩溃。运维测试命令可关闭兜底，直接暴露配置或网络错误。
 """
 from __future__ import annotations
 
-import os
+import logging
 import textwrap
 from dataclasses import dataclass
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class AIResult:
     text: str
     is_mock: bool
+    provider: str = "mock"
+    error: str = ""
+
+
+class DeepSeekError(RuntimeError):
+    """DeepSeek 调用失败。"""
+
+
+class DeepSeekConfigError(DeepSeekError):
+    """DeepSeek 配置缺失或无效。"""
+
+
+class DeepSeekRequestError(DeepSeekError):
+    """DeepSeek HTTP 请求失败。"""
+
+
+class DeepSeekResponseError(DeepSeekError):
+    """DeepSeek 返回结构不符合预期。"""
 
 
 def _mock_advice(avg_quality: float, avg_duration: int, streak: int, recent_status: str) -> str:
@@ -46,20 +67,49 @@ def _mock_advice(avg_quality: float, avg_duration: int, streak: int, recent_stat
     return "\n\n".join(f"• {t}" for t in tips)
 
 
-def call_deepseek(prompt: str) -> AIResult:
-    """调用 DeepSeek API；无 Key 时返回 Mock 结果。"""
-    api_key = getattr(settings, "DEEPSEEK_API_KEY", "")
+def _mock_result(error: str = "") -> AIResult:
+    return AIResult(text=_mock_advice(70, 450, 5, "normal"), is_mock=True, provider="mock", error=error)
+
+
+def _chat_completions_url(base_url: str) -> str:
+    """生成兼容 DeepSeek 官方 base_url 和 OpenAI 风格 /v1 base_url 的聊天接口地址。"""
+    base = (base_url or "https://api.deepseek.com").strip().rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base
+    return f"{base}/chat/completions"
+
+
+def _extract_text(payload: dict) -> str:
+    try:
+        text = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise DeepSeekResponseError("DeepSeek 返回结构异常，未找到 choices[0].message.content") from exc
+
+    if not isinstance(text, str) or not text.strip():
+        raise DeepSeekResponseError("DeepSeek 返回内容为空")
+    return text.strip()
+
+
+def call_deepseek(prompt: str, *, allow_mock: bool = True) -> AIResult:
+    """调用 DeepSeek API；业务接口默认允许 Mock 兜底。"""
+    api_key = getattr(settings, "DEEPSEEK_API_KEY", "").strip()
     if not api_key:
-        # 从 prompt 中解析关键指标（简单文本匹配）
-        return AIResult(text=_mock_advice(70, 450, 5, "normal"), is_mock=True)
+        error = "未配置 DEEPSEEK_API_KEY"
+        if allow_mock:
+            return _mock_result(error)
+        raise DeepSeekConfigError(error)
 
     try:
-        import httpx  # 软依赖，后端 requirements.txt 中已包含
+        import httpx
+
         base_url = getattr(settings, "DEEPSEEK_BASE_URL", "https://api.deepseek.com")
         model = getattr(settings, "DEEPSEEK_MODEL", "deepseek-chat")
+        timeout = float(getattr(settings, "DEEPSEEK_TIMEOUT_SECONDS", 20))
+        max_tokens = int(getattr(settings, "DEEPSEEK_MAX_TOKENS", 500))
+        temperature = float(getattr(settings, "DEEPSEEK_TEMPERATURE", 0.7))
 
         resp = httpx.post(
-            f"{base_url}/v1/chat/completions",
+            _chat_completions_url(base_url),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": model,
@@ -67,18 +117,23 @@ def call_deepseek(prompt: str) -> AIResult:
                     {"role": "system", "content": "你是一位专业的青少年睡眠健康顾问，用简洁、温暖、专业的语言给出改善建议，每次回复不超过 300 字。"},
                     {"role": "user", "content": prompt},
                 ],
-                "max_tokens": 500,
-                "temperature": 0.7,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": False,
             },
-            timeout=15,
+            timeout=timeout,
         )
         resp.raise_for_status()
-        text = resp.json()["choices"][0]["message"]["content"]
-        return AIResult(text=text, is_mock=False)
+        return AIResult(text=_extract_text(resp.json()), is_mock=False, provider="deepseek")
 
     except Exception as exc:
-        # 任何失败（网络、限流、解析错误）都回退到 Mock
-        return AIResult(text=_mock_advice(70, 450, 5, "normal"), is_mock=True)
+        error = str(exc)
+        logger.warning("DeepSeek request failed, falling back to mock advice: %s", error)
+        if allow_mock:
+            return _mock_result(error)
+        if isinstance(exc, DeepSeekError):
+            raise
+        raise DeepSeekRequestError(f"DeepSeek 请求失败：{error}") from exc
 
 
 def build_student_prompt(stats: dict) -> str:
