@@ -142,6 +142,46 @@ def export_day_overview_excel(classroom, target_date: date) -> bytes:
 # 个人学期 PDF
 # ────────────────────────────────────────────────────────────────
 
+def _register_reportlab_cjk_font() -> str:
+    """Return a ReportLab font name that can render Chinese text."""
+    import os
+
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    font_paths = [
+        # Windows
+        r"C:\Windows\Fonts\msyh.ttc",
+        r"C:\Windows\Fonts\simhei.ttf",
+        r"C:\Windows\Fonts\simsun.ttc",
+        # Ubuntu / Debian
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/arphic/uming.ttc",
+        # macOS
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+    ]
+
+    for fp in font_paths:
+        if not os.path.exists(fp):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("SleepSystemCJK", fp))
+            return "SleepSystemCJK"
+        except Exception:
+            continue
+
+    # Built into ReportLab. This keeps PDFs readable even before OS fonts are installed.
+    try:
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        return "STSong-Light"
+    except Exception:
+        return "Helvetica"
+
+
 def export_student_semester_pdf(student, year: int, semester: int) -> bytes:
     """semester=1 → 春（3-8月），semester=2 → 秋（9-次年2月）。"""
     from reportlab.lib.pagesizes import A4
@@ -149,27 +189,9 @@ def export_student_semester_pdf(student, year: int, semester: int) -> bytes:
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib import colors
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
     from apps.sleep.models import SleepRecord
-    import os
 
-    # 尝试注册中文字体（系统字体，Windows/Linux 通用路径）
-    font_paths = [
-        r"C:\Windows\Fonts\simhei.ttf",
-        r"C:\Windows\Fonts\msyh.ttc",
-        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    cn_font = "Helvetica"
-    for fp in font_paths:
-        if os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("ChinaFont", fp))
-                cn_font = "ChinaFont"
-                break
-            except Exception:
-                continue
+    cn_font = _register_reportlab_cjk_font()
 
     if semester == 1:
         start, end = date(year, 3, 1), date(year, 8, 31)

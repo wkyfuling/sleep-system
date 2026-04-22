@@ -24,6 +24,8 @@ apt-get install -y \
   build-essential \
   pkg-config \
   default-libmysqlclient-dev \
+  fonts-noto-cjk \
+  fonts-wqy-zenhei \
   python3-dev \
   python3-venv \
   nginx \
