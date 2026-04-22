@@ -38,11 +38,14 @@ async function seedDemo() {
 
   seeding.value = true
   try {
-    const res = await request.post('/auth/admin/seed-demo/')
+    await request.post('/auth/admin/seed-demo/', {}, { timeout: 120000 })
     ElMessage.success('演示数据生成成功！')
     loadStats()
   } catch (e) {
-    ElMessage.error('生成失败: ' + (e?.response?.data?.error || '未知错误'))
+    const msg = e?.code === 'ECONNABORTED'
+      ? '生成时间较长，请稍后刷新查看数据'
+      : (e?.response?.data?.error || e?.response?.data?.detail || '未知错误')
+    ElMessage.error('生成失败: ' + msg)
   } finally {
     seeding.value = false
   }
