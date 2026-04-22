@@ -83,7 +83,7 @@ onMounted(loadOverview)
     <section class="page-hero">
       <div>
         <h1>班级睡眠治理工作台</h1>
-        <p>聚合全班打卡率、质量分、严重异常和班级邀请码，便于老师快速发现风险并触达学生家长。</p>
+        <p>聚合全班昨夜打卡率、质量分、严重异常和班级邀请码，便于老师快速发现风险并触达学生家长。</p>
       </div>
       <div class="hero-actions">
         <el-button type="primary" size="large" :loading="diagnosisLoading" @click="runDiagnosis">
@@ -101,17 +101,17 @@ onMounted(loadOverview)
         <div class="metric-foot">{{ overview.classroom_name }}</div>
       </div>
       <div class="metric-tile">
-        <div class="metric-title">今日打卡率</div>
+        <div class="metric-title">昨夜打卡率</div>
         <div class="metric-main green">{{ overview.checkin_rate }}%</div>
         <div class="metric-foot">已打卡 {{ overview.today_checked }} 人</div>
       </div>
       <div class="metric-tile">
-        <div class="metric-title">近 7 天平均质量</div>
+        <div class="metric-title">近 7 夜平均质量</div>
         <div class="metric-main orange">{{ overview.avg_quality_7d }}</div>
         <div class="metric-foot">按有效打卡计算</div>
       </div>
       <div class="metric-tile" :class="{ warn: overview.severe_count > 0 }">
-        <div class="metric-title">近 7 天严重异常</div>
+        <div class="metric-title">近 7 夜严重异常</div>
         <div class="metric-main" :class="overview.severe_count > 0 ? 'red' : 'green'">
           {{ overview.severe_count }}
         </div>
@@ -123,7 +123,7 @@ onMounted(loadOverview)
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col :span="10">
         <el-card shadow="never" class="panel" style="height: 300px">
-          <template #header><b>今日打卡情况</b></template>
+          <template #header><b>昨夜打卡情况</b></template>
           <div id="teacher-pie" style="height: 220px" />
         </el-card>
       </el-col>

@@ -3,7 +3,7 @@ import RoleLayout from './RoleLayout.vue'
 
 const menu = [
   { path: '/student', title: '我的首页', icon: 'House' },
-  { path: '/student/checkin', title: '今日打卡', icon: 'Clock' },
+  { path: '/student/checkin', title: '晨间打卡', icon: 'Clock' },
   { path: '/student/history', title: '历史记录', icon: 'Calendar' },
   { path: '/student/heatmap', title: '睡眠热力图', icon: 'Grid' },
   { path: '/student/ranking', title: '班级排行', icon: 'TrendCharts' },

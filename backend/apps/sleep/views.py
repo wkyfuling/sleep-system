@@ -91,20 +91,24 @@ class SleepRecordViewSet(viewsets.ModelViewSet):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, role_required(User.Role.STUDENT)])
 def week_statistics(request):
-    """近 7 天统计 + 连续打卡天数。"""
+    """近 7 夜统计 + 连续打卡天数。
+
+    睡眠记录的 date 表示"那晚所属日期"。早上填写昨晚睡眠时，记录应计入昨夜，
+    因此学生首页的完成状态以昨天作为统计截止日。
+    """
     student = _student_of(request.user)
     if not student:
         return Response({"detail": "无学生档案"}, status=status.HTTP_400_BAD_REQUEST)
 
-    today = date.today()
-    week_start = today - timedelta(days=6)  # 包含今天共 7 天
+    target_date = timezone.localdate() - timedelta(days=1)
+    week_start = target_date - timedelta(days=6)  # 包含昨夜共 7 夜
 
     records = list(
-        SleepRecord.objects.filter(student=student, date__gte=week_start, date__lte=today)
+        SleepRecord.objects.filter(student=student, date__gte=week_start, date__lte=target_date)
         .order_by("date")
     )
 
-    # 构建 7 天日期列表
+    # 构建 7 夜日期列表
     days = []
     for i in range(7):
         d = week_start + timedelta(days=i)
@@ -120,7 +124,7 @@ def week_statistics(request):
 
     # 连续打卡天数
     streak = 0
-    d = today
+    d = target_date
     while True:
         rec = SleepRecord.objects.filter(student=student, date=d).exclude(status="missed").first()
         if rec:
@@ -133,16 +137,17 @@ def week_statistics(request):
     avg_quality = round(sum(r.quality_score for r in checked) / len(checked), 1) if checked else 0
     avg_duration = round(sum(r.duration_minutes for r in checked) / len(checked)) if checked else 0
 
-    # 今天状态
-    today_record = SleepRecord.objects.filter(student=student, date=today).first()
+    # 昨夜状态。字段名保持兼容，前端文案显示为"昨夜"。
+    target_record = SleepRecord.objects.filter(student=student, date=target_date).first()
 
     return Response({
+        "target_date": target_date.isoformat(),
         "days": days,
         "streak": streak,
         "avg_quality": avg_quality,
         "avg_duration": avg_duration,
-        "today_status": today_record.status if today_record else "missed",
-        "today_checked": today_record is not None and today_record.status != "missed",
+        "today_status": target_record.status if target_record else "missed",
+        "today_checked": target_record is not None and target_record.status != "missed",
     })
 
 

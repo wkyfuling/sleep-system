@@ -114,7 +114,7 @@ function reset() {
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <b>🌙 今日打卡</b>
+          <b>🌙 晨间打卡</b>
           <span class="hint">起床后回顾填写昨晚数据，数据最准确。支持补打最近 3 天。</span>
         </div>
       </template>

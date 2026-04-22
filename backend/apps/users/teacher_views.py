@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from django.db.models import Avg, Count
+from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -36,28 +37,30 @@ def create_classroom(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated, role_required(User.Role.TEACHER)])
 def class_overview(request):
-    """老师端班级整体概览：统计最近 7 天。"""
+    """老师端班级整体概览：统计最近 7 夜。"""
     classrooms = request.user.classrooms.prefetch_related("students")
     if not classrooms.exists():
         return Response({"detail": "您未创建班级", "classrooms": []})
 
     result = []
+    target_date = timezone.localdate() - timedelta(days=1)
     for classroom in classrooms:
         students = list(classroom.students.select_related("user"))
         total = len(students)
-        since = date.today() - timedelta(days=6)
+        since = target_date - timedelta(days=6)
 
-        # 今日打卡率
+        # 昨夜打卡率。字段名保持兼容，前端文案显示为"昨夜"。
         today_checked = SleepRecord.objects.filter(
             student__classroom=classroom,
-            date=date.today(),
+            date=target_date,
         ).exclude(status="missed").count()
 
-        # 近 7 天严重人数
+        # 近 7 夜严重人数
         severe_students = (
             SleepRecord.objects.filter(
                 student__classroom=classroom,
                 date__gte=since,
+                date__lte=target_date,
                 status="severe",
             )
             .values("student_id")
@@ -65,16 +68,18 @@ def class_overview(request):
             .count()
         )
 
-        # 近 7 天平均质量分
+        # 近 7 夜平均质量分
         avg_q = SleepRecord.objects.filter(
             student__classroom=classroom,
             date__gte=since,
+            date__lte=target_date,
         ).exclude(status="missed").aggregate(avg=Avg("quality_score"))["avg"]
 
         result.append({
             "classroom_id": classroom.id,
             "classroom_name": classroom.name,
             "invite_code": classroom.invite_code,
+            "target_date": target_date.isoformat(),
             "total_students": total,
             "today_checked": today_checked,
             "checkin_rate": round(today_checked / total * 100, 1) if total else 0,

@@ -32,7 +32,7 @@ const routes = [
     meta: { roles: ['student'] },
     children: [
       { path: '', component: () => import('@/views/student/Home.vue') },
-      { path: 'checkin', component: () => import('@/views/student/CheckIn.vue'), meta: { title: '今日打卡' } },
+      { path: 'checkin', component: () => import('@/views/student/CheckIn.vue'), meta: { title: '晨间打卡' } },
       { path: 'history', component: () => import('@/views/student/History.vue'), meta: { title: '历史记录' } },
       { path: 'heatmap', component: () => import('@/views/student/Heatmap.vue'), meta: { title: '睡眠热力图' } },
       { path: 'ranking', component: () => import('@/views/student/Ranking.vue'), meta: { title: '班级排行' } },

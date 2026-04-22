@@ -175,7 +175,7 @@ def admin_user_detail(request, pk: int):
 @api_view(["GET"])
 @permission_classes([role_required(User.Role.ADMIN)])
 def admin_global_stats(request):
-    """全局统计：用户数、班级数、今日打卡数等。"""
+    """全局统计：用户数、班级数、今日提交数等。"""
     from apps.sleep.models import SleepRecord
     from apps.users.models import ClassRoom
     from datetime import date

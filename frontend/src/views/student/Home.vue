@@ -71,7 +71,7 @@ function renderChart() {
 }
 
 const shortcuts = [
-  { icon: '✏️', label: '今日打卡', path: '/student/checkin' },
+  { icon: '✏️', label: '晨间打卡', path: '/student/checkin' },
   { icon: '📚', label: '历史记录', path: '/student/history' },
   { icon: '🌡️', label: '睡眠热力图', path: '/student/heatmap' },
   { icon: '🏆', label: '班级排行', path: '/student/ranking' },
@@ -88,7 +88,7 @@ onMounted(loadStats)
         <p>回顾昨晚睡眠、查看近 7 天趋势、获取 AI 建议，并通过持续打卡养成稳定作息。</p>
       </div>
       <div class="hero-actions">
-        <el-button type="primary" size="large" @click="router.push('/student/checkin')">今日打卡</el-button>
+        <el-button type="primary" size="large" @click="router.push('/student/checkin')">晨间打卡</el-button>
         <el-button size="large" @click="router.push('/student/ai')">AI 建议</el-button>
       </div>
     </section>
@@ -106,7 +106,7 @@ onMounted(loadStats)
               <div class="sub-text">{{ profile?.classroom?.name || '暂未加入班级' }}・学号 {{ profile?.student_no }}</div>
             </div>
             <el-button type="primary" @click="router.push('/student/checkin')">
-              ＋ 今日打卡
+              ＋ 晨间打卡
             </el-button>
           </div>
         </el-card>
@@ -117,7 +117,7 @@ onMounted(loadStats)
             <div class="streak-num">{{ stats.streak }}</div>
             <div class="streak-label">连续打卡天数 🔥</div>
             <el-tag :type="stats.today_checked ? 'success' : 'info'" size="small">
-              今日：{{ stats.today_checked ? '已打卡' : '未打卡' }}
+              昨夜：{{ stats.today_checked ? '已打卡' : '未打卡' }}
             </el-tag>
           </div>
           <div v-else class="streak-inner">
@@ -131,7 +131,7 @@ onMounted(loadStats)
     <!-- 近 7 天概览 -->
     <div class="metric-grid" v-if="stats">
       <div class="metric-tile">
-        <div class="metric-title">近 7 天平均质量分</div>
+        <div class="metric-title">近 7 夜平均质量分</div>
         <div class="metric-main">{{ stats.avg_quality }}</div>
         <div class="metric-foot">满分 100 分</div>
       </div>
@@ -141,7 +141,7 @@ onMounted(loadStats)
         <div class="metric-foot">目标 {{ profile?.target_sleep_hours || 8 }} 小时</div>
       </div>
       <div class="metric-tile">
-        <div class="metric-title">今日睡眠状态</div>
+        <div class="metric-title">昨夜睡眠状态</div>
         <div class="metric-main">
           <el-tag :color="statusMap[stats.today_status]?.color" style="color:#fff; border:0">
             {{ statusMap[stats.today_status]?.label }}
@@ -152,14 +152,14 @@ onMounted(loadStats)
       <div class="metric-tile">
         <div class="metric-title">连续打卡</div>
         <div class="metric-main">{{ stats.streak }} 天</div>
-        <div class="metric-foot">{{ stats.today_checked ? '今日已完成' : '今日未完成' }}</div>
+        <div class="metric-foot">{{ stats.today_checked ? '昨夜已完成' : '昨夜未完成' }}</div>
       </div>
     </div>
 
     <!-- 7 天柱状图 -->
     <el-card shadow="never" class="panel" v-loading="loading">
       <template #header>
-        <span>📊 近 7 天睡眠质量分</span>
+        <span>📊 近 7 夜睡眠质量分</span>
         <el-button link style="float:right" @click="router.push('/student/history')">查看历史 →</el-button>
       </template>
       <div id="week-chart" style="height: 220px" />

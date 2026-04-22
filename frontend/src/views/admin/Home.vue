@@ -23,8 +23,8 @@ const statCards = [
   { icon: '🎓', key: 'student_count', label: '学生数' },
   { icon: '👨‍🏫', key: 'teacher_count', label: '老师数' },
   { icon: '🏫', key: 'classroom_count', label: '班级数' },
-  { icon: '✅', key: 'today_checkins', label: '今日打卡' },
-  { icon: '⚠️', key: 'severe_today', label: '今日严重异常' },
+  { icon: '✅', key: 'today_checkins', label: '今日提交' },
+  { icon: '⚠️', key: 'severe_today', label: '今日提交严重异常' },
 ]
 
 async function seedDemo() {
@@ -59,7 +59,7 @@ onMounted(loadStats)
     <section class="page-hero">
       <div>
         <h1>系统运营总览</h1>
-        <p>查看全局用户、班级、今日打卡和严重异常数据，并快速进入演示数据与内容管理。</p>
+        <p>查看全局用户、班级、今日提交和严重异常数据，并快速进入演示数据与内容管理。</p>
       </div>
       <div class="hero-actions">
         <el-button type="primary" size="large" :loading="seeding" @click="seedDemo">生成演示数据</el-button>
