@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
+import { aiApi } from '@/api/ai'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -68,7 +69,7 @@ const shortcuts = [
 async function runDiagnosis() {
   diagnosisLoading.value = true
   try {
-    diagnosis.value = await request.post('/teacher/ai/class-diagnosis/')
+    diagnosis.value = await aiApi.classDiagnosis()
     diagnosisVisible.value = true
   } finally {
     diagnosisLoading.value = false
