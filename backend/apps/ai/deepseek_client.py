@@ -90,7 +90,15 @@ def _extract_text(payload: dict) -> str:
     return text.strip()
 
 
-def call_deepseek(prompt: str, *, allow_mock: bool = True) -> AIResult:
+DEFAULT_SYSTEM_PROMPT = "你是一位专业的青少年睡眠健康顾问，用简洁、温暖、专业的语言给出改善建议，每次回复不超过 300 字。"
+
+
+def call_deepseek(
+    prompt: str,
+    *,
+    allow_mock: bool = True,
+    system_prompt: str | None = None,
+) -> AIResult:
     """调用 DeepSeek API；业务接口默认允许 Mock 兜底。"""
     api_key = getattr(settings, "DEEPSEEK_API_KEY", "").strip()
     if not api_key:
@@ -114,7 +122,7 @@ def call_deepseek(prompt: str, *, allow_mock: bool = True) -> AIResult:
             json={
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": "你是一位专业的青少年睡眠健康顾问，用简洁、温暖、专业的语言给出改善建议，每次回复不超过 300 字。"},
+                    {"role": "system", "content": system_prompt or DEFAULT_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
                 "max_tokens": max_tokens,

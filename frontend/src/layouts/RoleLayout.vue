@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
+import AiAssistantFloating from '@/components/AiAssistantFloating.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -113,6 +114,7 @@ async function handleLogout() {
         <RouterView />
       </el-main>
     </el-container>
+    <AiAssistantFloating />
   </el-container>
 </template>
 
