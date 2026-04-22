@@ -89,9 +89,9 @@ def export_class_month_excel(classroom, year: int, month: int) -> bytes:
                 cell.fill = status_fill.get(r.status, PatternFill())
 
     # 自适应列宽
-    for col in ws.columns:
+    for col_idx, col in enumerate(ws.columns, start=1):
         max_len = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        ws.column_dimensions[col[0].column_letter].width = max(8, min(max_len + 2, 20))
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(8, min(max_len + 2, 20))
 
     buf = io.BytesIO()
     wb.save(buf)
