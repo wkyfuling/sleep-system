@@ -78,8 +78,8 @@ function scrollToBottom() {
 function compactHistory() {
   return messages.value
     .filter((item) => item.role === 'user' || item.role === 'assistant')
-    .slice(-6)
-    .map((item) => ({ role: item.role, content: item.content }))
+    .slice(-4)
+    .map((item) => ({ role: item.role, content: String(item.content).slice(0, 220) }))
 }
 
 async function sendMessage(text = input.value) {
@@ -103,6 +103,7 @@ async function sendMessage(text = input.value) {
       role: 'assistant',
       content: res.reply,
       isMock: res.is_mock,
+      provider: res.provider,
     })
   } catch (e) {
     messages.value.push({
@@ -137,7 +138,7 @@ function clearChat() {
             <span class="assistant-logo"><MagicStick /></span>
             <div>
               <strong>SleepCare AI 助手</strong>
-              <span>{{ loading ? '正在响应' : '在线' }}</span>
+              <span>{{ loading ? '正在生成，最多约 1 分钟' : '在线' }}</span>
             </div>
           </div>
           <div class="assistant-actions">
@@ -164,7 +165,7 @@ function clearChat() {
             <div class="message-bubble">
               <div class="message-text">{{ item.content }}</div>
               <el-tag v-if="item.role === 'assistant' && item.isMock" size="small" type="warning">
-                兜底回复
+                本地兜底
               </el-tag>
             </div>
           </div>
@@ -198,7 +199,7 @@ function clearChat() {
             v-model="input"
             type="textarea"
             :autosize="{ minRows: 1, maxRows: 3 }"
-            maxlength="800"
+            maxlength="500"
             resize="none"
             placeholder="问 SleepCare AI..."
             @keydown.enter.exact.prevent="sendMessage()"

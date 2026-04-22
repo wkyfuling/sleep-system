@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
@@ -19,11 +20,11 @@ from apps.users.permissions import role_required
 from apps.sleep.models import SleepRecord
 
 from .models import AIAdvice
-from .deepseek_client import AIResult, build_student_prompt, call_deepseek
+from .deepseek_client import AIResult, DeepSeekError, build_student_prompt, call_deepseek
 
 DAILY_LIMIT = 3
-MAX_CHAT_MESSAGE_LEN = 800
-MAX_CHAT_HISTORY = 6
+MAX_CHAT_MESSAGE_LEN = 500
+MAX_CHAT_HISTORY = 4
 
 
 @api_view(["POST"])
@@ -182,27 +183,49 @@ def chat(request):
     history = _format_chat_history(request.data.get("history") or [])
     role_context = _build_role_context(request.user)
 
-    prompt = (
-        f"当前用户角色：{request.user.get_role_display()}端\n"
-        f"当前页面：{page_context or '未知'}\n\n"
-        f"系统业务数据摘要：\n{role_context}\n\n"
-        f"最近对话：\n{history or '暂无'}\n\n"
-        f"用户问题：{message}\n\n"
-        "请基于以上信息回答。若数据不足，请明确说明还需要用户补充什么。"
-    )
+    prompt = _build_chat_prompt(request.user, page_context, role_context, history, message)
     system_prompt = (
         "你是 SleepCare AI 助手，服务于学生睡眠管理系统。"
-        "回答必须使用中文，语气专业、简洁、可执行。"
-        "只基于给出的业务摘要分析，不要编造具体学生、班级或打卡数据。"
+        "回答必须使用中文，专业、简洁、可执行。"
+        "只基于给出的摘要分析，不要编造具体学生、班级或打卡数据。"
         "涉及健康风险时提醒用户联系家长、老师或专业人士，不要做医疗诊断。"
-        "除非用户要求详细说明，否则每次回复不超过 450 字。"
+        "默认用 3 条以内回答，不超过 220 字。"
     )
-    result = call_deepseek(prompt, system_prompt=system_prompt)
+
+    try:
+        result = call_deepseek(
+            prompt,
+            allow_mock=False,
+            system_prompt=system_prompt,
+            model=getattr(settings, "DEEPSEEK_ASSISTANT_MODEL", None),
+            timeout=getattr(settings, "DEEPSEEK_ASSISTANT_TIMEOUT_SECONDS", 45),
+            max_tokens=getattr(settings, "DEEPSEEK_ASSISTANT_MAX_TOKENS", 320),
+            temperature=getattr(settings, "DEEPSEEK_ASSISTANT_TEMPERATURE", 0.4),
+        )
+    except DeepSeekError as exc:
+        fallback = _local_chat_fallback(request.user, message, role_context)
+        return Response({
+            "reply": fallback,
+            "is_mock": True,
+            "provider": "local",
+            "error": str(exc)[:180],
+        })
+
     return Response({
         "reply": result.text,
         "is_mock": result.is_mock,
         "provider": result.provider,
     })
+
+
+def _build_chat_prompt(user: User, page_context: str, role_context: str, history: str, message: str) -> str:
+    return (
+        f"角色：{user.get_role_display()}端；页面：{page_context or '未知'}。\n"
+        f"摘要：{role_context}\n"
+        f"近聊：{history or '无'}\n"
+        f"问题：{message}\n"
+        "要求：直接回答，优先给 1-3 条建议；数据不足时说明缺什么。"
+    )
 
 
 def _format_chat_history(items) -> str:
@@ -220,8 +243,36 @@ def _format_chat_history(items) -> str:
         if not content:
             continue
         label = "用户" if role == "user" else "助手"
-        lines.append(f"{label}：{content[:500]}")
+        lines.append(f"{label}：{content[:180]}")
     return "\n".join(lines)
+
+
+def _local_chat_fallback(user: User, message: str, role_context: str) -> str:
+    role = user.role
+    question = message[:80]
+    if role == User.Role.TEACHER:
+        return (
+            f"AI 模型响应超时，先按本地数据给你一个可执行结论：\n"
+            f"1. 当前班级摘要：{role_context}\n"
+            f"2. 针对“{question}”，建议先确认班级人数和有效打卡是否充足；若人数为 0 或打卡率为 0，先补齐学生加入和打卡数据。\n"
+            "3. 对连续异常学生，优先私下沟通作息原因，再同步家长，避免公开点名。"
+        )
+    if role == User.Role.PARENT:
+        return (
+            f"AI 模型响应超时，先按本地数据给你一个参考：\n"
+            f"{role_context}\n"
+            "建议先关注连续异常、睡眠时长不足和起床后疲惫感，沟通时用询问原因代替批评。"
+        )
+    if role == User.Role.ADMIN:
+        return (
+            f"AI 模型响应超时，先按系统摘要给你一个结论：{role_context}\n"
+            "建议优先检查今日提交量、严重异常量和演示数据完整性，再进入比赛展示。"
+        )
+    return (
+        f"AI 模型响应超时，先按本地数据给你一个建议：\n"
+        f"{role_context}\n"
+        "今晚优先保持固定入睡时间，睡前 1 小时减少手机使用，明早按时完成晨间打卡。"
+    )
 
 
 def _build_role_context(user: User) -> str:

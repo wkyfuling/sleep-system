@@ -98,6 +98,10 @@ def call_deepseek(
     *,
     allow_mock: bool = True,
     system_prompt: str | None = None,
+    model: str | None = None,
+    timeout: float | None = None,
+    max_tokens: int | None = None,
+    temperature: float | None = None,
 ) -> AIResult:
     """调用 DeepSeek API；业务接口默认允许 Mock 兜底。"""
     api_key = getattr(settings, "DEEPSEEK_API_KEY", "").strip()
@@ -111,10 +115,10 @@ def call_deepseek(
         import httpx
 
         base_url = getattr(settings, "DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        model = getattr(settings, "DEEPSEEK_MODEL", "deepseek-chat")
-        timeout = float(getattr(settings, "DEEPSEEK_TIMEOUT_SECONDS", 20))
-        max_tokens = int(getattr(settings, "DEEPSEEK_MAX_TOKENS", 500))
-        temperature = float(getattr(settings, "DEEPSEEK_TEMPERATURE", 0.7))
+        model = model or getattr(settings, "DEEPSEEK_MODEL", "deepseek-chat")
+        timeout = float(timeout if timeout is not None else getattr(settings, "DEEPSEEK_TIMEOUT_SECONDS", 60))
+        max_tokens = int(max_tokens if max_tokens is not None else getattr(settings, "DEEPSEEK_MAX_TOKENS", 500))
+        temperature = float(temperature if temperature is not None else getattr(settings, "DEEPSEEK_TEMPERATURE", 0.7))
 
         resp = httpx.post(
             _chat_completions_url(base_url),
